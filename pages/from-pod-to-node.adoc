@@ -1,0 +1,210 @@
+= Module: From Pod to Node – Understanding Risk, Exceptions, and Containment
+:toc:
+:icons: font
+
+== Objective
+
+Demonstrate how OpenShift's secure-by-default posture protects workloads, how real-world exceptions introduce risk, and how layered controls (SCC, SELinux, RBAC, ACS) help contain attacker behavior.
+
+---
+
+== Scenario Overview
+
+In this module, we simulate a real-world attack path:
+
+* A vulnerable application is deployed
+* Platform security blocks it by default
+* A business-driven exception is introduced
+* An attacker gains access to the workload
+* The attacker attempts to escalate to the node
+* OpenShift enforces containment
+
+---
+
+== Phase 1: Secure by Default
+
+=== Step 1: Attempt to Deploy Privileged Workload
+
+[source,bash]
+----
+oc apply -f vulnerable-pod.yaml
+oc get pods -n compromised-app
+----
+
+=== Expected Result
+
+The pod fails to start (e.g., `CrashLoopBackOff` or admission denial).
+
+=== Speaker Notes
+
+OpenShift enforces restrictive Security Context Constraints (SCCs) by default.
+
+Privileged containers or those requiring elevated permissions will not run unless explicitly allowed.
+
+This is a *secure-by-default* posture.
+
+---
+
+== Phase 2: Introducing a Business Exception
+
+=== Step 2: Loosen SCC for the Application
+
+[source,bash]
+----
+oc adm policy add-scc-to-user anyuid -z webapp-sa -n compromised-app
+----
+
+=== Step 3: Restart the Pod
+
+[source,bash]
+----
+oc delete pod -n compromised-app <pod-name>
+oc get pods -n compromised-app
+----
+
+=== Expected Result
+
+The pod successfully transitions to `Running`.
+
+=== Speaker Notes
+
+In real environments, security teams often make exceptions to allow applications to function.
+
+This change is scoped to a specific ServiceAccount, but it introduces risk.
+
+"The platform didn’t change — we changed the policy."
+
+---
+
+== Phase 3: Simulated Compromise
+
+=== Step 4: Simulate Remote Code Execution
+
+[source,bash]
+----
+<run hollywood exploit script>
+----
+
+=== Step 5: Access the Pod
+
+[source,bash]
+----
+oc rsh -n compromised-app <pod-name>
+----
+
+=== Speaker Notes
+
+We simulate an attacker gaining access through a vulnerable external-facing application.
+
+The exploit is illustrative, but the impact is real.
+
+---
+
+== Phase 4: ServiceAccount Token Discovery
+
+=== Step 6: Inspect ServiceAccount Credentials
+
+[source,bash]
+----
+ls /var/run/secrets/kubernetes.io/serviceaccount/
+cat /var/run/secrets/kubernetes.io/serviceaccount/token | head -c 20; echo
+----
+
+=== Speaker Notes
+
+Every pod is associated with a ServiceAccount.
+
+If compromised, this token can be used to interact with the Kubernetes API.
+
+"The attacker is no longer just inside a container — they have an identity."
+
+---
+
+== Phase 5: Attempted Cluster Abuse
+
+=== Step 7: Deploy Malicious DaemonSet via API
+
+[source,bash]
+----
+<daemonset one-liner command>
+----
+
+=== Expected Result
+
+The DaemonSet deployment fails due to security enforcement (SCC/SELinux).
+
+=== Speaker Notes
+
+The attacker attempts to deploy a privileged DaemonSet with hostPath access.
+
+This is a common escalation technique to reach the node.
+
+However, OpenShift enforces runtime restrictions that prevent this.
+
+---
+
+== Phase 6: Observing Enforcement
+
+=== Step 8: Inspect Failure
+
+[source,bash]
+----
+oc get pods -n compromised-app
+oc describe pod <failing-pod> -n compromised-app
+----
+
+=== Speaker Notes
+
+The failure is not due to application error — it is enforced by platform security controls.
+
+SELinux and SCC prevent unsafe access to the host.
+
+"The attacker got far — but not far enough."
+
+---
+
+== Phase 7: (Optional) ACS Detection
+
+=== Step 9: Review Security Alerts
+
+[source,bash]
+----
+# Navigate to ACS UI or use CLI if available
+----
+
+=== Expected Result
+
+Alerts may include:
+
+* Privileged container request
+* HostPath mount attempt
+* Suspicious workload behavior
+
+=== Speaker Notes
+
+Red Hat Advanced Cluster Security (ACS) provides visibility into these actions.
+
+Even failed attempts are valuable signals.
+
+"Detection complements prevention."
+
+---
+
+== Key Takeaways
+
+* OpenShift enforces strong security defaults
+* Exceptions introduce measurable risk
+* ServiceAccount tokens are a critical attack vector
+* RBAC and SCC govern *what is allowed*
+* SELinux enforces *what is possible at runtime*
+* ACS provides visibility into suspicious behavior
+
+---
+
+== Closing Message
+
+Security is not about preventing compromise entirely.
+
+It is about controlling what happens next.
+
+"OpenShift doesn’t stop compromise — it stops compromise from becoming infrastructure control."
