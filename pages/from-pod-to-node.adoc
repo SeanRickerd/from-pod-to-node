@@ -20,6 +20,31 @@ In this module, we simulate a real-world attack path:
 * OpenShift enforces containment
 
 ---
+== Environment Setup
+
+=== Step 0: Retrieve Demo Assets
+
+[source,bash]
+----
+REPO_URL="https://github.com/SeanRickerd/frompodtonode.git"
+WORKDIR="/tmp/frompodtonode"
+
+if [ -d "$WORKDIR" ]; then
+  git -C $WORKDIR pull -q
+else
+  git clone -q $REPO_URL $WORKDIR
+fi
+
+cd $WORKDIR
+----
+
+This repository contains all required manifests for the demo.
+
+Only the `deployments` and `attacks` directories are used.
+
+The `pages` directory contains documentation and is not required for execution.
+
+---
 
 == Phase 1: Secure by Default
 
@@ -27,15 +52,13 @@ In this module, we simulate a real-world attack path:
 
 [source,bash]
 ----
-oc apply -f vulnerable-pod.yaml
+oc apply -f deployments/vulnerable-pod.yaml
 oc get pods -n compromised-app
 ----
 
 === Expected Result
 
 The pod fails to start (e.g., `CrashLoopBackOff` or admission denial).
-
-=== Speaker Notes
 
 OpenShift enforces restrictive Security Context Constraints (SCCs) by default.
 
@@ -66,8 +89,6 @@ oc get pods -n compromised-app
 
 The pod successfully transitions to `Running`.
 
-=== Speaker Notes
-
 In real environments, security teams often make exceptions to allow applications to function.
 
 This change is scoped to a specific ServiceAccount, but it introduces risk.
@@ -78,21 +99,12 @@ This change is scoped to a specific ServiceAccount, but it introduces risk.
 
 == Phase 3: Simulated Compromise
 
-=== Step 4: Simulate Remote Code Execution
+=== Step 4: Run the Remote Code Execution and Access the Pod
 
 [source,bash]
 ----
-<run hollywood exploit script>
+./attacks/rce-to-pod.sh
 ----
-
-=== Step 5: Access the Pod
-
-[source,bash]
-----
-oc rsh -n compromised-app <pod-name>
-----
-
-=== Speaker Notes
 
 We simulate an attacker gaining access through a vulnerable external-facing application.
 
@@ -102,15 +114,13 @@ The exploit is illustrative, but the impact is real.
 
 == Phase 4: ServiceAccount Token Discovery
 
-=== Step 6: Inspect ServiceAccount Credentials
+=== Step 5: Inspect ServiceAccount Credentials
 
 [source,bash]
 ----
 ls /var/run/secrets/kubernetes.io/serviceaccount/
 cat /var/run/secrets/kubernetes.io/serviceaccount/token | head -c 20; echo
 ----
-
-=== Speaker Notes
 
 Every pod is associated with a ServiceAccount.
 
@@ -122,7 +132,7 @@ If compromised, this token can be used to interact with the Kubernetes API.
 
 == Phase 5: Attempted Cluster Abuse
 
-=== Step 7: Deploy Malicious DaemonSet via API
+=== Step 6: Deploy Malicious DaemonSet via API
 
 [source,bash]
 ----
@@ -132,8 +142,6 @@ If compromised, this token can be used to interact with the Kubernetes API.
 === Expected Result
 
 The DaemonSet deployment fails due to security enforcement (SCC/SELinux).
-
-=== Speaker Notes
 
 The attacker attempts to deploy a privileged DaemonSet with hostPath access.
 
@@ -145,15 +153,13 @@ However, OpenShift enforces runtime restrictions that prevent this.
 
 == Phase 6: Observing Enforcement
 
-=== Step 8: Inspect Failure
+=== Step 7: Inspect Failure
 
 [source,bash]
 ----
 oc get pods -n compromised-app
 oc describe pod <failing-pod> -n compromised-app
 ----
-
-=== Speaker Notes
 
 The failure is not due to application error — it is enforced by platform security controls.
 
@@ -165,7 +171,7 @@ SELinux and SCC prevent unsafe access to the host.
 
 == Phase 7: (Optional) ACS Detection
 
-=== Step 9: Review Security Alerts
+=== Step 8: Review Security Alerts
 
 [source,bash]
 ----
@@ -180,7 +186,6 @@ Alerts may include:
 * HostPath mount attempt
 * Suspicious workload behavior
 
-=== Speaker Notes
 
 Red Hat Advanced Cluster Security (ACS) provides visibility into these actions.
 
