@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: compromised-app
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: webapp-sa
+  namespace: compromised-app
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: demo-daemonset-admin
+rules:
+  - apiGroups: ["apps"]
+    resources: ["daemonsets"]
+    verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "nodes", "namespaces"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: webapp-sa-demo-daemonset-admin
+subjects:
+  - kind: ServiceAccount
+    name: webapp-sa
+    namespace: compromised-app
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: demo-daemonset-admin
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp
+  namespace: compromised-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webapp
+  template:
+    metadata:
+      labels:
+        app: webapp
+    spec:
+      serviceAccountName: webapp-sa
+      containers:
+        - name: webapp
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              cat >/usr/share/nginx/html/index.html <<'EOF'
+              <html>
+              <body>
+              <h1>Payroll Portal</h1>
+              <p>Status: OK</p>
+              <p>Demo foothold workload</p>
+              </body>
+              </html>
+              EOF
+              nginx -g 'daemon off;'
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp
+  namespace: compromised-app
+spec:
+  selector:
+    app: webapp
+  ports:
+    - port: 80
+      targetPort: 80
