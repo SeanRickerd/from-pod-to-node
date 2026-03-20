@@ -26,8 +26,8 @@ In this module, we simulate a real-world attack path:
 
 [source,bash]
 ----
-git clone https://github.com/SeanRickerd/frompodtonode.git ./frompodtonode
-cd frompodtonode
+git clone https://github.com/SeanRickerd/from-pod-to-node.git ./from-pod-to-node
+cd from-pod-to-node 
 ----
 
 This repository contains all required manifests for the demo.
