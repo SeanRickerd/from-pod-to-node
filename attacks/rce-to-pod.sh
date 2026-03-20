@@ -18,7 +18,7 @@ jitter() {
 }
 
 # ===== Get pod name dynamically =====
-WEBAPP=$(kubectl get pods -n $NAMESPACE \
+WEBAPP=$(oc get pods -n $NAMESPACE \
   --no-headers \
   -o custom-columns=":metadata.name" | head -n 1)
 
@@ -88,4 +88,4 @@ run_exploit
 
 # ===== Drop into pod =====
 echo "[*] Dropping into compromised pod..."
-kubectl exec -n $NAMESPACE -it $WEBAPP -- sh
+oc exec -n $NAMESPACE -it $WEBAPP -- sh
